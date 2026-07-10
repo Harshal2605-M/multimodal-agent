@@ -1,0 +1,59 @@
+# Environment variables / secrets
+.env
+.env.*
+!.env.example
+
+# Python virtual environments
+.venv/
+venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Test / coverage cache
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Type checker / linter cache
+.mypy_cache/
+.ruff_cache/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary uploads / processing files
+tmp/
+temp/
+uploads/
+
+# Local model/cache directories
+models/
+.cache/
+
+# Audio/video processing artifacts
+*.tmp
+*.temp
+
+# Local databases/checkpoints if introduced for development
+*.db
+*.sqlite
+*.sqlite3
