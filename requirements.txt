@@ -11,3 +11,5 @@ PyMuPDF
 Pillow
 pytesseract
 faster-whisper
+groq
+google-genai
