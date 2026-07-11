@@ -7,3 +7,7 @@ python-multipart
 pytest
 pytest-asyncio
 httpx
+PyMuPDF
+Pillow
+pytesseract
+faster-whisper
