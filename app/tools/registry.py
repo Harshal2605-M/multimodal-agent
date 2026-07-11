@@ -1,7 +1,7 @@
 from collections.abc import Iterable
 
 from app.agent.schemas import ToolName
-from app.tools.base import AgentTool
+from app.tools.base import AgentTool, ToolInput
 
 
 class ToolRegistry:

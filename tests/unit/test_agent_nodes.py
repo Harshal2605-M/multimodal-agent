@@ -2,7 +2,15 @@ from typing import cast
 
 import pytest
 
-from app.agent.nodes import AgentNodes
+from app.agent.executor import Executor
+from app.agent.nodes import (
+    AgentNodes,
+    create_executor_node,
+)
+from app.agent.state import (
+    AgentState,
+    create_initial_state,
+)
 from app.agent.schemas import (
     InputReference,
     InputReferenceType,
@@ -10,7 +18,7 @@ from app.agent.schemas import (
     PlanStep,
     ToolName,
 )
-from app.agent.state import create_initial_state
+
 from app.llm.models import (
     LLMProviderName,
     LLMStructuredGenerationResult,
@@ -268,3 +276,45 @@ def test_response_composer_creates_placeholder_completed_response() -> None:
     assert response.answer is not None
     assert response.request_id == "request_1"
     assert response.warnings == ["input warning"]
+
+class FakeExecutor:
+    def __init__(self) -> None:
+        self.calls: list[AgentState] = []
+
+    def execute_current_step(
+        self,
+        state: AgentState,
+    ) -> dict[str, object]:
+        self.calls.append(state)
+
+        return {
+            "current_step_index": 1,
+            "execution_count": 1,
+        }
+
+
+def test_executor_node_delegates_to_executor_once() -> None:
+    fake_executor = FakeExecutor()
+
+    executor_node = create_executor_node(
+        cast(
+            Executor,
+            fake_executor,
+        )
+    )
+
+    state = create_initial_state(
+        request_id="request_1",
+        context=NormalizedContext(
+            query="Answer this.",
+        ),
+    )
+
+    updates = executor_node(state)
+
+    assert fake_executor.calls == [state]
+
+    assert updates == {
+        "current_step_index": 1,
+        "execution_count": 1,
+    }

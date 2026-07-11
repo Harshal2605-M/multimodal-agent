@@ -1,6 +1,9 @@
 import pytest
 
-from app.agent.routers import clarification_router
+from app.agent.routers import (
+    clarification_router,
+    execution_router,
+)
 from app.agent.schemas import (
     InputReference,
     InputReferenceType,
@@ -40,6 +43,16 @@ def build_clear_plan() -> PlannerOutput:
         ],
     )
 
+def build_state_with_clear_plan():
+    state = create_initial_state(
+        request_id="request_1",
+        context=build_context(),
+    )
+
+    state["plan"] = build_clear_plan()
+    state["plan_validated"] = True
+
+    return state
 
 def build_ambiguous_plan() -> PlannerOutput:
     return PlannerOutput(
@@ -103,3 +116,39 @@ def test_router_rejects_unvalidated_plan() -> None:
         match="requires a validated plan",
     ):
         clarification_router(state)
+
+
+def test_execution_router_routes_to_executor_when_steps_remain() -> None:
+    state = build_state_with_clear_plan()
+
+    state["current_step_index"] = 0
+
+    assert execution_router(state) == "executor"
+
+
+def test_execution_router_routes_to_response_composer_when_complete() -> None:
+    state = build_state_with_clear_plan()
+
+    state["current_step_index"] = len(
+        state["plan"].steps
+    )
+
+    assert (
+        execution_router(state)
+        == "response_composer"
+    )
+
+
+def test_execution_router_requires_plan() -> None:
+    state = create_initial_state(
+        request_id="request_1",
+        context=NormalizedContext(
+            query="Answer this.",
+        ),
+    )
+
+    with pytest.raises(
+        ValueError,
+        match="requires a planner output",
+    ):
+        execution_router(state)

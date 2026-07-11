@@ -6,7 +6,9 @@ from app.models.response import (
     AgentResponse,
     ResponseStatus,
 )
+from collections.abc import Callable
 
+from app.agent.executor import Executor
 
 class AgentNodes:
     """
@@ -182,3 +184,17 @@ class AgentNodes:
                 errors=list(state["errors"]),
             )
         }
+def create_executor_node(
+    executor: Executor,
+) -> Callable[[AgentState], dict[str, object]]:
+    """
+    Create a LangGraph node that executes exactly one current
+    plan step using the injected Executor.
+    """
+
+    def executor_node(
+        state: AgentState,
+    ) -> dict[str, object]:
+        return executor.execute_current_step(state)
+
+    return executor_node

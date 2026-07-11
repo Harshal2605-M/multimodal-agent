@@ -1,23 +1,41 @@
 from langgraph.graph import END, START, StateGraph
 
-from app.agent.nodes import AgentNodes
-from app.agent.routers import clarification_router
+from app.agent.executor import Executor
+from app.agent.nodes import (
+    AgentNodes,
+    create_executor_node,
+)
+from app.agent.planner import Planner
+from app.agent.routers import (
+    clarification_router,
+    execution_router,
+)
 from app.agent.state import AgentState
 
 
 def build_agent_graph(
     *,
-    nodes: AgentNodes,
+    planner: Planner,
+    executor: Executor,
 ):
     """
-    Build and compile the Phase 8 LangGraph workflow.
+    Build and compile the LangGraph workflow.
 
-    Ambiguous requests terminate after clarification without reaching
-    the executor.
+    Ambiguous requests terminate after clarification without
+    reaching the executor.
 
-    Clear requests reach the placeholder executor, then the temporary
-    response composer, before terminating.
+    Clear requests execute one plan step per executor-node call.
+    Execution loops while plan steps remain, then routes to the
+    response composer before terminating.
     """
+
+    nodes = AgentNodes(
+        planner=planner,
+    )
+
+    executor_node = create_executor_node(
+        executor
+    )
 
     workflow = StateGraph(AgentState)
 
@@ -38,7 +56,7 @@ def build_agent_graph(
 
     workflow.add_node(
         "executor",
-        nodes.executor_node,
+        executor_node,
     )
 
     workflow.add_node(
@@ -70,9 +88,13 @@ def build_agent_graph(
         END,
     )
 
-    workflow.add_edge(
+    workflow.add_conditional_edges(
         "executor",
-        "response_composer",
+        execution_router,
+        {
+            "executor": "executor",
+            "response_composer": "response_composer",
+        },
     )
 
     workflow.add_edge(

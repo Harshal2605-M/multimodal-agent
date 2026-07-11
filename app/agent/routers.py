@@ -36,3 +36,25 @@ def clarification_router(
         return "clarify"
 
     return "executor"
+
+def execution_router(
+    state: AgentState,
+) -> str:
+    """
+    Route execution back to the executor while plan steps remain.
+
+    Route to response composition only after all planned steps have
+    been processed.
+    """
+
+    plan = state["plan"]
+
+    if plan is None:
+        raise ValueError(
+            "Execution router requires a planner output."
+        )
+
+    if state["current_step_index"] < len(plan.steps):
+        return "executor"
+
+    return "response_composer"
