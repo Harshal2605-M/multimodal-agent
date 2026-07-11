@@ -101,3 +101,4 @@ def test_secret_api_keys_are_masked() -> None:
         settings.groq_api_key.get_secret_value()
         == "groq-secret-value"
     )
+

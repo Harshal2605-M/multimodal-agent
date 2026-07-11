@@ -57,6 +57,12 @@ class Settings(BaseSettings):
     # Upload / Resource Limits
     # ---------------------------------------------------------
 
+    upload_read_chunk_size_bytes: int = Field(
+    default=1024 * 1024,
+    ge=1024,
+    le=8 * 1024 * 1024,
+    )
+
     max_files: int = Field(
         default=5,
         ge=1,
