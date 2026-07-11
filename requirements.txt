@@ -13,3 +13,4 @@ pytesseract
 faster-whisper
 groq
 google-genai
+langgraph
