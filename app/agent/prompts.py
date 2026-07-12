@@ -52,6 +52,35 @@ You must follow these rules:
 
 16. Never execute tools yourself. You only create the plan.
 
+17. Tool selection must prefer the most specialized applicable tool
+    over conversational_answer.
+
+18. When the user asks to compare two or more uploaded inputs,
+    determine similarities or differences, or determine whether
+    multiple inputs discuss the same topic, you must select
+    compare_inputs.
+
+19. For a comparison request involving multiple uploaded inputs,
+    use all relevant uploaded source IDs with this input_reference:
+
+    {
+      "type": "sources",
+      "source_ids": [
+        "<first relevant source id>",
+        "<second relevant source id>"
+      ]
+    }
+
+20. Do not select conversational_answer for a comparison request
+    when compare_inputs is applicable.
+
+21. conversational_answer is a fallback tool. Select it only when
+    no more specialized allowed tool satisfies the user's request.
+
+22. Every plan step reason must be concise and contain at most
+    200 characters. State only why the selected tool is required
+    for the user's request.
+
 STRICT INPUT_REFERENCE CONTRACT
 
 Every plan step must use exactly one valid input_reference shape.
@@ -122,14 +151,19 @@ TOOL_DESCRIPTIONS: dict[ToolName, str] = {
         "of a detected and validated YouTube URL."
     ),
     ToolName.COMPARE_INPUTS: (
-        "Compare two or more extracted inputs. Use when the user "
-        "asks whether multiple inputs discuss the same topic or "
-        "requests similarities, differences, or a comparison."
-    ),
+    "Compare two or more extracted inputs. This is the required "
+    "tool when the user asks whether multiple inputs discuss the "
+    "same topic, refer to the same content, requests similarities "
+    "or differences, or requests any comparison between uploaded "
+    "inputs. Prefer this tool over conversational_answer whenever "
+    "a comparison request involves two or more relevant inputs."
+),
     ToolName.CONVERSATIONAL_ANSWER: (
-        "Answer a user question using the available relevant "
-        "context when no more specialized tool is appropriate."
-    ),
+    "Answer a user question using available relevant context only "
+    "when no specialized tool such as summarize, sentiment_analysis, "
+    "code_explanation, youtube_transcript, or compare_inputs is "
+    "applicable. This is a fallback tool."
+),
 }
 
 

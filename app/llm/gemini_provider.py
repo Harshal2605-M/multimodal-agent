@@ -152,16 +152,41 @@ class GeminiProvider(BaseLLMProvider):
     ) -> LLMStructuredGenerationResult:
         """
         Generate JSON content and validate it against a Pydantic model.
+
+        Gemini is constrained to JSON output at the provider boundary.
+        Application-owned Pydantic validation remains the authoritative
+        structured-output contract.
         """
 
         config = types.GenerateContentConfig(
             response_mime_type="application/json",
-            response_schema=output_model,
         )
 
         response = self._generate_content(
             prompt=prompt,
             config=config,
+        )
+
+        content = self._extract_content(response)
+
+        try:
+            parsed_json = json.loads(content)
+
+            validated_output = output_model.model_validate(
+                parsed_json
+            )
+
+        except (
+            json.JSONDecodeError,
+            ValidationError,
+        ) as exc:
+            raise LLMStructuredOutputError(
+                "Gemini returned invalid structured output."
+            ) from exc
+
+        return LLMStructuredGenerationResult(
+            output=validated_output,
+            provider_used=LLMProviderName.GEMINI,
         )
 
         content = self._extract_content(response)

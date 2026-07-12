@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: multimodal-agent
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+
+    envVars:
+      - key: APP_ENV
+        value: production
+
+      - key: DEBUG
+        value: "false"
+
+      - key: LOG_LEVEL
+        value: INFO
+
+      - key: GROQ_API_KEY
+        sync: false
+
+      - key: GEMINI_API_KEY
+        sync: false
