@@ -1,7 +1,11 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import Field, SecretStr
+from pydantic import (
+    Field,
+    SecretStr,
+    model_validator,
+)
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -52,6 +56,14 @@ class Settings(BaseSettings):
     gemini_api_key: SecretStr | None = None
 
     gemini_model: str = "gemini-2.5-flash"
+
+    # ---------------------------------------------------------
+    # YouTube Transcript Proxy
+    # ---------------------------------------------------------
+
+    youtube_proxy_username: SecretStr | None = None
+
+    youtube_proxy_password: SecretStr | None = None
 
     # ---------------------------------------------------------
     # Upload / Resource Limits
@@ -169,6 +181,33 @@ class Settings(BaseSettings):
         case_sensitive=False,
         extra="ignore",
     )
+
+    # ---------------------------------------------------------
+    # Configuration Validation
+    # ---------------------------------------------------------
+
+    @model_validator(mode="after")
+    def validate_youtube_proxy_configuration(self):
+        proxy_values = (
+            self.youtube_proxy_host,
+            self.youtube_proxy_port,
+            self.youtube_proxy_username,
+            self.youtube_proxy_password,
+        )
+
+        configured_count = sum(
+            value is not None
+            for value in proxy_values
+        )
+
+        if configured_count not in (0, 4):
+            raise ValueError(
+                "YouTube proxy host, port, username, and password "
+                "must all be configured together."
+            )
+
+        return self
+
 
     # ---------------------------------------------------------
     # Derived Values

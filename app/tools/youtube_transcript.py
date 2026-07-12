@@ -4,18 +4,60 @@ from youtube_transcript_api import (
     NoTranscriptFound,
     YouTubeTranscriptApi,
 )
+from youtube_transcript_api.proxies import GenericProxyConfig
+
 from app.agent.schemas import (
     ToolName,
     ToolResult,
     ToolStatus,
 )
+from app.config import Settings, get_settings
 from app.models.input import URLType
-from app.utils.url_detection import detect_urls
 from app.tools.base import AgentTool, ToolInput
+from app.utils.url_detection import detect_urls
+from youtube_transcript_api.proxies import WebshareProxyConfig
 
 
 TranscriptFetcher = Callable[[str], str]
 
+
+def _build_youtube_api(
+    settings: Settings,
+) -> YouTubeTranscriptApi:
+    """
+    Build the YouTube transcript client.
+
+    Use one authenticated proxy when all proxy settings are configured.
+    Otherwise preserve direct access for local development.
+    """
+
+    host = settings.youtube_proxy_host
+    port = settings.youtube_proxy_port
+    username = settings.youtube_proxy_username
+    password = settings.youtube_proxy_password
+
+    if (
+        host is None
+        or port is None
+        or username is None
+        or password is None
+    ):
+        return YouTubeTranscriptApi()
+
+    proxy_username = username.get_secret_value()
+    proxy_password = password.get_secret_value()
+
+    proxy_url = (
+        f"http://{proxy_username}:"
+        f"{proxy_password}@{host}:{port}"
+    )
+
+    return YouTubeTranscriptApi(
+        proxy_config=GenericProxyConfig(
+            http_url=proxy_url,
+            https_url=proxy_url,
+        )
+    )
 
 def fetch_youtube_transcript(
     video_id: str,
@@ -27,7 +69,7 @@ def fetch_youtube_transcript(
     to the first available transcript, including auto-generated ones.
     """
 
-    api = YouTubeTranscriptApi()
+    api = _build_youtube_api(get_settings())
 
     transcript_list = api.list(video_id)
 
