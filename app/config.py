@@ -1,22 +1,20 @@
 from functools import lru_cache
-from typing import Literal
+from typing import Literal, Self
 
 from pydantic import (
     Field,
     SecretStr,
     model_validator,
 )
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import (
+    BaseSettings,
+    SettingsConfigDict,
+)
 
 
 class Settings(BaseSettings):
     """
     Central application configuration.
-
-    Configuration is loaded from environment variables and, during local
-    development, from the .env file.
-
-    Environment variables take precedence over values defined in .env.
     """
 
     # ---------------------------------------------------------
@@ -61,6 +59,14 @@ class Settings(BaseSettings):
     # YouTube Transcript Proxy
     # ---------------------------------------------------------
 
+    youtube_proxy_host: str | None = None
+
+    youtube_proxy_port: int | None = Field(
+        default=None,
+        ge=1,
+        le=65535,
+    )
+
     youtube_proxy_username: SecretStr | None = None
 
     youtube_proxy_password: SecretStr | None = None
@@ -70,9 +76,9 @@ class Settings(BaseSettings):
     # ---------------------------------------------------------
 
     upload_read_chunk_size_bytes: int = Field(
-    default=1024 * 1024,
-    ge=1024,
-    le=8 * 1024 * 1024,
+        default=1024 * 1024,
+        ge=1024,
+        le=8 * 1024 * 1024,
     )
 
     max_files: int = Field(
@@ -187,7 +193,7 @@ class Settings(BaseSettings):
     # ---------------------------------------------------------
 
     @model_validator(mode="after")
-    def validate_youtube_proxy_configuration(self):
+    def validate_youtube_proxy_configuration(self) -> Self:
         proxy_values = (
             self.youtube_proxy_host,
             self.youtube_proxy_port,
@@ -207,7 +213,6 @@ class Settings(BaseSettings):
             )
 
         return self
-
 
     # ---------------------------------------------------------
     # Derived Values
@@ -234,8 +239,6 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """
     Return one cached Settings instance per Python process.
-
-    This avoids repeatedly parsing environment variables and the .env file.
     """
 
     return Settings()
