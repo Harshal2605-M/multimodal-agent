@@ -104,6 +104,13 @@ def validate_plan(
                     f"{unknown_source_ids}."
                 )
 
+        elif reference.type is InputReferenceType.ALL_SOURCES:
+            if not context.extracted_inputs:
+                errors.append(
+                    f"Step '{step.id}' uses ALL_SOURCES but the "
+                    "context contains no extracted inputs."
+                )
+
         elif reference.type is InputReferenceType.STEP_OUTPUT:
             assert reference.step_id is not None
 

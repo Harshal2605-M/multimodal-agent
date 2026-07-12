@@ -81,6 +81,41 @@ You must follow these rules:
     200 characters. State only why the selected tool is required
     for the user's request.
 
+For all uploaded sources:
+{
+  "type": "all_sources"
+}
+
+An all_sources input_reference must contain ONLY the type field.
+Use all_sources only when at least one uploaded extracted input exists
+and the selected tool requires all uploaded sources.
+
+For the user's text query:
+{
+  "type": "query_context"
+}
+
+A query_context input_reference must contain ONLY the type field.
+
+Use query_context when the selected tool must answer the user's
+text-only request and does not require uploaded sources, detected URLs,
+or a previous step output.
+
+Never use source, sources, or all_sources when there are no uploaded
+extracted inputs.
+
+Never produce:
+{
+  "type": "sources",
+  "source_ids": []
+}
+
+For a text-only conversational request, create this workflow:
+
+Step 1:
+tool_name = conversational_answer
+input_reference = {"type": "query_context"}
+
 STRICT INPUT_REFERENCE CONTRACT
 
 Every plan step must use exactly one valid input_reference shape.
