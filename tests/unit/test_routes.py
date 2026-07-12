@@ -67,16 +67,14 @@ def create_test_app(
     return test_app
 
 
-def test_root_returns_api_message() -> None:
+def test_root_serves_frontend() -> None:
     client = TestClient(create_test_app())
 
     response = client.get("/")
 
     assert response.status_code == 200
-
-    assert response.json() == {
-        "message": "Multimodal Agent API",
-    }
+    assert "text/html" in response.headers["content-type"]
+    assert "<!DOCTYPE html>" in response.text
 
 
 def test_health_returns_healthy_status() -> None:
@@ -236,12 +234,14 @@ def test_openapi_contains_expected_routes() -> None:
 
     schema = test_app.openapi()
 
-    assert "/" in schema["paths"]
+    assert "/" not in schema["paths"]
+
     assert "/health" in schema["paths"]
+
     assert "/agent/run" in schema["paths"]
 
-    assert "get" in schema["paths"]["/"]
     assert "get" in schema["paths"]["/health"]
+
     assert "post" in schema["paths"]["/agent/run"]
 
 

@@ -1,5 +1,3 @@
-from app.agent.schemas import ToolName
-from app.models.input import NormalizedContext
 from app.agent.schemas import PlannerOutput, ToolName
 from app.models.input import (
     DetectedURL,
@@ -53,6 +51,53 @@ You must follow these rules:
 15. Respect dependencies between plan steps.
 
 16. Never execute tools yourself. You only create the plan.
+
+STRICT INPUT_REFERENCE CONTRACT
+
+Every plan step must use exactly one valid input_reference shape.
+
+For detected URLs:
+{
+  "type": "detected_urls"
+}
+
+A detected_urls input_reference must contain ONLY the type field.
+Never include source_id, source_ids, or step_id.
+Never put the actual URL inside input_reference.
+
+For one uploaded source:
+{
+  "type": "source",
+  "source_id": "<existing source id>"
+}
+
+For multiple uploaded sources:
+{
+  "type": "sources",
+  "source_ids": ["<existing source id>"]
+}
+
+For the output of a previous step:
+{
+  "type": "step_output",
+  "step_id": "<previous step id>"
+}
+
+Never mix fields from different input_reference types.
+
+For a YouTube summarization request, create this workflow:
+
+Step 1:
+tool_name = youtube_transcript
+input_reference = {"type": "detected_urls"}
+
+Step 2:
+tool_name = summarize
+input_reference = {
+  "type": "step_output",
+  "step_id": "step1"
+}
+depends_on = ["step1"]
 """.strip()
 
 

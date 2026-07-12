@@ -1,7 +1,9 @@
 from collections.abc import Callable
 
-from youtube_transcript_api import YouTubeTranscriptApi
-
+from youtube_transcript_api import (
+    NoTranscriptFound,
+    YouTubeTranscriptApi,
+)
 from app.agent.schemas import (
     ToolName,
     ToolResult,
@@ -21,18 +23,27 @@ def fetch_youtube_transcript(
     """
     Fetch and normalize transcript text for one YouTube video.
 
-    External-library details stay behind this function so the tool
-    itself depends only on a small injectable callable contract.
+    Prefer an English transcript when available. Otherwise fall back
+    to the first available transcript, including auto-generated ones.
     """
 
-    transcript = YouTubeTranscriptApi.get_transcript(
-        video_id
-    )
+    api = YouTubeTranscriptApi()
+
+    transcript_list = api.list(video_id)
+
+    try:
+        transcript = transcript_list.find_transcript(
+            ["en"]
+        )
+    except NoTranscriptFound:
+        transcript = next(iter(transcript_list))
+
+    fetched_transcript = transcript.fetch()
 
     return " ".join(
-        item["text"].strip()
-        for item in transcript
-        if item.get("text", "").strip()
+        snippet.text.strip()
+        for snippet in fetched_transcript
+        if snippet.text.strip()
     )
 
 
@@ -107,7 +118,12 @@ class YouTubeTranscriptTool(AgentTool):
             transcript = self._transcript_fetcher(
                 detected_url.video_id
             )
-        except Exception:
+        except Exception as exc:
+            print(
+                "YouTube transcript fetch failed: "
+                f"{type(exc).__name__}: {exc}"
+            )
+
             return ToolResult(
                 step_id=tool_input.step_id,
                 tool_name=self.name,

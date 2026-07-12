@@ -163,8 +163,23 @@ class GroqProvider(BaseLLMProvider):
         Generate JSON content and validate it against a Pydantic model.
         """
 
+        output_schema = output_model.model_json_schema()
+
+        structured_prompt = (
+            "Return only one valid JSON object.\n"
+            "The JSON object MUST strictly conform to the JSON schema below.\n"
+            "Preserve all required field types and nested object structures.\n"
+            "Do not replace nested objects with strings.\n"
+            "Do not use markdown code fences.\n"
+            "Do not include explanations or text outside the JSON object.\n\n"
+            "JSON SCHEMA:\n"
+            f"{json.dumps(output_schema, indent=2)}\n\n"
+            "TASK:\n"
+            f"{prompt}"
+        )
+
         response = self._create_completion(
-            prompt=prompt,
+            prompt=structured_prompt,
             response_format={
                 "type": "json_object",
             },
@@ -191,4 +206,3 @@ class GroqProvider(BaseLLMProvider):
             output=validated_output,
             provider_used=LLMProviderName.GROQ,
         )
-

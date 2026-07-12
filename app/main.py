@@ -1,12 +1,17 @@
 import logging
+from pathlib import Path
 from uuid import UUID, uuid4
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.dependencies import REQUEST_ID_STATE_KEY
 from app.api.routes import router
 
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+STATIC_DIR = PROJECT_ROOT / "static"
 
 logger = logging.getLogger(__name__)
 
@@ -17,9 +22,10 @@ SECURITY_HEADERS = {
     "Referrer-Policy": "no-referrer",
     "Content-Security-Policy": (
         "default-src 'self'; "
-        "script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
-        "style-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; "
-        "img-src 'self' data: https://fastapi.tiangolo.com; "
+        "script-src 'self'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data:; "
+        "connect-src 'self'; "
         "frame-ancestors 'none'"
     ),
 }
@@ -28,9 +34,6 @@ SECURITY_HEADERS = {
 def create_app() -> FastAPI:
     """
     Create and configure the FastAPI application.
-
-    Using an application factory makes testing easier and avoids
-    spreading application setup across multiple files.
     """
 
     application = FastAPI(
@@ -44,6 +47,12 @@ def create_app() -> FastAPI:
 
     install_middleware(application)
     install_exception_handlers(application)
+
+    application.mount(
+        "/static",
+        StaticFiles(directory=STATIC_DIR),
+        name="static",
+    )
 
     application.include_router(router)
 

@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multimodal Agent Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css?v=1.0.5">
+    <script src="/static/app.js?v=1.0.5" defer></script>
+    <link rel="icon" href="data:,">
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-left">
+            <div class="logo-container" aria-label="Multimodal Agent Logo">
+                <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                </svg>
+                <span class="logo-text">Multimodal Agent</span>
+            </div>
+            <span class="badge badge-accent">AI Assessment</span>
+        </div>
+        <div class="header-right">
+            <div class="health-indicator" id="health-status" aria-live="polite">
+                <span class="status-dot status-checking"></span>
+                <span class="status-text">Checking API...</span>
+            </div>
+            <a href="/docs" class="btn btn-secondary btn-sm" target="_blank" rel="noopener noreferrer">API Docs</a>
+        </div>
+    </header>
+
+    <main class="app-main">
+        <div class="layout-grid">
+            <!-- Left Column: Request Composer -->
+            <section class="workspace-column" aria-label="Agent Workspace">
+                <!-- Compact Welcome Card -->
+                <div class="welcome-card">
+                    <h1>Secure Multimodal AI Agent</h1>
+                    <p class="subtitle">Plan, execute, inspect.</p>
+                    <p class="intro-description">Securely parse documents, configure actions, and inspect agent traces in real time.</p>
+                </div>
+
+                <!-- Scenario Grid -->
+                <div class="scenarios-container">
+                    <h2 class="section-title">Try a Scenario</h2>
+                    <div class="scenarios-grid" id="scenarios-grid">
+                        <button class="scenario-card" data-scenario="1" type="button">
+                            <span class="scenario-tag">Scenario 1</span>
+                            <h3>Audio Summary</h3>
+                            <p class="scenario-desc">Transcribe and summarize audio.</p>
+                            <span class="file-hint">Requires: .mp3, .wav, or .m4a</span>
+                        </button>
+                        <button class="scenario-card" data-scenario="2" type="button">
+                            <span class="scenario-tag">Scenario 2</span>
+                            <h3>PDF Action Items</h3>
+                            <p class="scenario-desc">Extract action items from a document.</p>
+                            <span class="file-hint">Requires: .pdf</span>
+                        </button>
+                        <button class="scenario-card" data-scenario="3" type="button">
+                            <span class="scenario-tag">Scenario 3</span>
+                            <h3>Code Explanation</h3>
+                            <p class="scenario-desc">OCR an image of code and explain bugs.</p>
+                            <span class="file-hint">Requires: .png, .jpg, or .jpeg</span>
+                        </button>
+                        <button class="scenario-card" data-scenario="4" type="button">
+                            <span class="scenario-tag">Scenario 4</span>
+                            <h3>PDF YouTube Summary</h3>
+                            <p class="scenario-desc">Extract a PDF URL, pull transcript, and summarize.</p>
+                            <span class="file-hint">Requires: .pdf</span>
+                        </button>
+                        <button class="scenario-card" data-scenario="5" type="button">
+                            <span class="scenario-tag">Scenario 5</span>
+                            <h3>Multi-Input Compare</h3>
+                            <p class="scenario-desc">Compare audio content and PDF details.</p>
+                            <span class="file-hint">Requires: .pdf + Audio</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Request Composer -->
+                <div class="composer-card">
+                    <form id="agent-form" novalidate>
+                        <div class="composer-header">
+                            <label for="query-input" class="composer-label">Request Prompt</label>
+                            <span class="char-counter" id="char-counter" aria-live="polite">0 / 10,000</span>
+                        </div>
+                        <textarea 
+                            id="query-input" 
+                            name="query" 
+                            placeholder="Describe what you want the agent to do..." 
+                            rows="4" 
+                            maxlength="10000"
+                            required
+                        ></textarea>
+
+                        <!-- Drag and Drop Zone -->
+                        <div class="upload-dropzone" id="drop-zone">
+                            <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                            </svg>
+                            <div class="upload-text">
+                                <span>Drag & drop files here or <span class="upload-link">browse</span></span>
+                                <span class="upload-types">PDF, PNG, JPG, JPEG, MP3, WAV, M4A</span>
+                            </div>
+                            <input 
+                                type="file" 
+                                id="file-input" 
+                                multiple 
+                                accept=".pdf,.png,.jpg,.jpeg,.mp3,.wav,.m4a"
+                                class="hidden-file-input"
+                                aria-label="Upload files"
+                            >
+                        </div>
+
+                        <!-- Selected File List -->
+                        <div class="selected-files-container hidden" id="files-container">
+                            <div class="files-header">
+                                <h3>Selected Files</h3>
+                                <button type="button" class="btn-clear-all" id="btn-clear-all">Clear All</button>
+                            </div>
+                            <ul class="file-list" id="file-list"></ul>
+                        </div>
+
+                        <!-- Submit Section -->
+                        <div class="submit-container">
+                            <button type="submit" class="btn btn-primary btn-lg btn-block" id="btn-submit">
+                                <span class="btn-text">Run Agent</span>
+                                <span class="spinner hidden" id="submit-spinner"></span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+
+            <!-- Right Column: Technical Inspector -->
+            <section class="inspector-column" aria-label="Technical Inspector">
+                <div class="inspector-shell">
+                    <div class="inspector-shell-header">
+                        <span class="shell-title">Technical Inspector</span>
+                        <span class="status-badge" id="inspector-status-badge">Idle</span>
+                    </div>
+
+                    <div class="inspector-shell-body">
+                        <!-- Compact Status & Metrics Bar -->
+                        <div class="status-bar hidden" id="status-bar">
+                            <div class="metrics-grid" id="metrics-card">
+                                <div class="metric-item">
+                                    <span class="metric-val" id="metric-total">0</span>
+                                    <span class="metric-label">Planned</span>
+                                </div>
+                                <div class="metric-item">
+                                    <span class="metric-val" id="metric-executed">0</span>
+                                    <span class="metric-label">Executed</span>
+                                </div>
+                                <div class="metric-item">
+                                    <span class="metric-val text-success" id="metric-success">0</span>
+                                    <span class="metric-label">Success</span>
+                                </div>
+                                <div class="metric-item">
+                                    <span class="metric-val text-error" id="metric-failed">0</span>
+                                    <span class="metric-label">Failed</span>
+                                </div>
+                                <div class="metric-item">
+                                    <span class="metric-val text-warning" id="metric-skipped">0</span>
+                                    <span class="metric-label">Skipped</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Warnings and Errors Dashboard Alert -->
+                        <div class="alerts-panel hidden" id="alerts-panel">
+                            <!-- Warning Alerts -->
+                            <div class="alert-section hidden" id="warning-section">
+                                <div class="alert-header warning-text">
+                                    <svg class="alert-mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                                    </svg>
+                                    <h3>System Warnings</h3>
+                                </div>
+                                <ul class="alert-list" id="warning-list"></ul>
+                            </div>
+
+                            <!-- Error Alerts -->
+                            <div class="alert-section hidden" id="error-section">
+                                <div class="alert-header error-text">
+                                    <svg class="alert-mini-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
+                                    </svg>
+                                    <h3>Execution Errors</h3>
+                                </div>
+                                <ul class="alert-list" id="error-list"></ul>
+                            </div>
+                        </div>
+
+                        <!-- PRIMARY RESULT AREA -->
+                        <div class="primary-result-area" id="primary-result-area">
+                            <!-- Inspector State: IDLE -->
+                            <div class="inspector-idle-card" id="inspector-idle-state">
+                                <p class="idle-title">Ready to inspect an agent execution.</p>
+                                <p class="idle-subtitle">Configure a request, attach inputs, and run the agent.</p>
+                                <div class="idle-pipeline">
+                                    <span>Input</span>
+                                    <svg class="pipeline-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="9 18 15 12 9 6"/>
+                                    </svg>
+                                    <span>Plan</span>
+                                    <svg class="pipeline-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="9 18 15 12 9 6"/>
+                                    </svg>
+                                    <span>Tools</span>
+                                    <svg class="pipeline-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="9 18 15 12 9 6"/>
+                                    </svg>
+                                    <span>Answer</span>
+                                </div>
+                            </div>
+
+                            <!-- Inspector State: RUNNING (Reuses progress-card ID) -->
+                            <div class="progress-card hidden" id="progress-card">
+                                <div class="progress-running-indicator">
+                                    <span class="progress-title">Running agent...</span>
+                                </div>
+                                <p class="progress-message" id="progress-message" aria-live="assertive">Securing uploads...</p>
+                            </div>
+
+                            <!-- Final Answer Panel -->
+                            <div class="answer-card hidden" id="answer-card">
+                                <!-- Dummy empty state to satisfy DOM cache in app.js -->
+                                <div id="answer-empty" class="hidden"></div>
+
+                                <!-- Populated state -->
+                                <div class="answer-content" id="answer-content">
+                                    <div class="answer-header">
+                                        <div class="answer-title-group">
+                                            <span class="status-badge" id="answer-status-badge"></span>
+                                            <h2>Final Answer</h2>
+                                        </div>
+                                        <button type="button" class="btn btn-secondary btn-sm" id="btn-copy-answer">
+                                            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                                            </svg>
+                                            <span>Copy</span>
+                                        </button>
+                                    </div>
+                                    <div class="answer-body">
+                                        <pre id="answer-text" class="safe-pre-text"></pre>
+                                    </div>
+                                    <div class="answer-footer">
+                                        <span class="request-id-display">Request ID: <span id="answer-request-id"></span></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Clarification Interface -->
+                            <div class="clarification-card hidden" id="clarification-card">
+                                <div class="alert-banner alert-warning">
+                                    <svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                                    </svg>
+                                    <div class="alert-content">
+                                        <h3>Clarification Required</h3>
+                                        <p id="clarification-question-text"></p>
+                                    </div>
+                                </div>
+                                <form id="clarification-form" novalidate>
+                                    <div class="form-group">
+                                        <label for="clarification-answer-input">Provide your response</label>
+                                        <textarea 
+                                            id="clarification-answer-input" 
+                                            placeholder="Answer the question above to continue execution..." 
+                                            rows="3" 
+                                            required
+                                        ></textarea>
+                                    </div>
+                                    <div class="btn-group">
+                                        <button type="submit" class="btn btn-primary" id="btn-continue-clarify">
+                                            <span class="btn-text">Continue Agent</span>
+                                            <span class="spinner hidden" id="continue-spinner"></span>
+                                        </button>
+                                        <button type="button" class="btn btn-secondary" id="btn-cancel-clarify">Cancel</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Technical Tabs Area -->
+                        <div class="technical-tabs-card hidden" id="technical-tabs-card">
+                            <div class="tabs-header" role="tablist">
+                                <button class="tab-btn active" id="tab-plan" role="tab" aria-selected="true" aria-controls="execution-plan-card" type="button">Plan</button>
+                                <button class="tab-btn" id="tab-inputs" role="tab" aria-selected="false" aria-controls="extracted-inputs-card" type="button">Inputs</button>
+                                <button class="tab-btn" id="tab-trace" role="tab" aria-selected="false" aria-controls="execution-trace-card" type="button">Trace</button>
+                            </div>
+
+                            <div class="tabs-content">
+                                <!-- PLAN PANEL -->
+                                <div class="tab-panel" id="execution-plan-card" role="tabpanel" aria-labelledby="tab-plan">
+                                    <h3 class="panel-subtitle">Execution Plan</h3>
+                                    <div class="inspector-empty" id="plan-empty">
+                                        <p>No execution plan available.</p>
+                                    </div>
+                                    <div class="plan-details-container hidden" id="plan-details">
+                                        <div class="plan-goal-block">
+                                            <strong>Goal:</strong>
+                                            <p id="plan-goal-text"></p>
+                                        </div>
+                                        <div class="plan-constraints-block hidden" id="plan-constraints">
+                                            <strong>Constraints:</strong>
+                                            <ul id="plan-constraints-list"></ul>
+                                        </div>
+                                        <div class="plan-timeline-block">
+                                            <strong>Planned Tool Workflow:</strong>
+                                            <ol class="plan-timeline" id="plan-timeline-list"></ol>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- INPUTS PANEL -->
+                                <div class="tab-panel hidden" id="extracted-inputs-card" role="tabpanel" aria-labelledby="tab-inputs">
+                                    <h3 class="panel-subtitle">Extracted Inputs</h3>
+                                    <div class="inspector-empty" id="inputs-empty">
+                                        <p>No inputs extracted.</p>
+                                    </div>
+                                    <div class="collapsible-group hidden" id="inputs-container"></div>
+                                </div>
+
+                                <!-- TRACE PANEL -->
+                                <div class="tab-panel hidden" id="execution-trace-card" role="tabpanel" aria-labelledby="tab-trace">
+                                    <h3 class="panel-subtitle">Technical Trace Logs</h3>
+                                    <div class="trace-tabs">
+                                        <button class="trace-tab active" id="tab-plan-trace" type="button">Plan Trace</button>
+                                        <button class="trace-tab" id="tab-exec-trace" type="button">Execution Trace</button>
+                                    </div>
+                                    
+                                    <div class="inspector-empty" id="trace-empty">
+                                        <p>No trace events recorded.</p>
+                                    </div>
+
+                                    <!-- Plan Trace Panel -->
+                                    <div class="trace-list-container hidden" id="plan-trace-container">
+                                        <ul class="trace-timeline" id="plan-trace-list"></ul>
+                                    </div>
+
+                                    <!-- Execution Trace Panel -->
+                                    <div class="trace-list-container hidden" id="exec-trace-container">
+                                        <ul class="trace-timeline" id="exec-trace-list"></ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer class="app-footer">
+        <p>&copy; 2026 Multimodal Agent System. Secure sandboxed execution environment.</p>
+    </footer>
+</body>
+</html>

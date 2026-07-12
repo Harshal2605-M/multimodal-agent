@@ -16,19 +16,27 @@ from app.api.dependencies import (
 from app.models.response import AgentResponse
 from app.services.agent_service import AgentService
 
+from pathlib import Path
+
+from fastapi.responses import FileResponse
+
 
 router = APIRouter()
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+STATIC_DIR = PROJECT_ROOT / "static"
 
-
-@router.get("/")
-def root() -> dict[str, str]:
+@router.get(
+    "/",
+    include_in_schema=False,
+)
+def root() -> FileResponse:
     """
-    Basic API discovery endpoint.
+    Serve the browser frontend.
     """
 
-    return {
-        "message": "Multimodal Agent API",
-    }
+    return FileResponse(
+        STATIC_DIR / "index.html"
+    )
 
 
 @router.get("/health")

@@ -58,16 +58,16 @@ def assert_security_headers(response) -> None:
         assert response.headers[header_name] == header_value
 
 
-def test_root_works_through_real_application() -> None:
+def test_root_serves_frontend_through_real_application() -> None:
     client = create_client()
 
     response = client.get("/")
 
     assert response.status_code == 200
 
-    assert response.json() == {
-        "message": "Multimodal Agent API",
-    }
+    assert "text/html" in response.headers["content-type"]
+
+    assert "<!DOCTYPE html>" in response.text
 
     assert_valid_uuid(
         response.headers["X-Request-ID"]
@@ -206,7 +206,7 @@ def test_openapi_json_loads() -> None:
         "Multimodal Agent API"
     )
 
-    assert "/" in schema["paths"]
+    assert not "/" in schema["paths"]
 
     assert "/health" in schema["paths"]
 
