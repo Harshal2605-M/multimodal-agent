@@ -6,7 +6,7 @@ The project demonstrates practical Generative AI engineering beyond a basic chat
 
 ## Live Demo
 
-**Public Application:** [`<YOUR_RENDER_PUBLIC_URL>`](https://multimodal-agent-dv2h.onrender.com)
+**Public Application:** `https://multimodal-agent-dv2h.onrender.com`
 
 **Health Endpoint:** `https://multimodal-agent-dv2h.onrender.com/health`
 
