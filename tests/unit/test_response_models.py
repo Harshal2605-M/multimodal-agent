@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.agent.schemas import ToolName
+
 from app.models.response import (
     AgentError,
     AgentResponse,
@@ -11,6 +11,16 @@ from app.models.trace import (
     TraceEvent,
     TraceStage,
     TraceStatus,
+)
+from app.agent.schemas import (
+    InputReference,
+    InputReferenceType,
+    ToolName,
+)
+from app.models.input import InputType
+from app.models.response import (
+    ResponseExtractedInput,
+    ResponsePlanStep,
 )
 
 
@@ -203,3 +213,43 @@ def test_response_mutable_defaults_are_not_shared() -> None:
     first.warnings.append("warning")
 
     assert second.warnings == []
+
+def test_response_phase11_fields_have_safe_defaults() -> None:
+    response = AgentResponse(
+        request_id="req_1",
+        status=ResponseStatus.COMPLETED,
+        answer="Completed answer.",
+    )
+
+    assert response.extracted_inputs == []
+    assert response.plan is None
+    assert response.plan_trace == []
+    assert response.final_answer is None
+
+    assert response.metadata.total_plan_steps == 0
+    assert response.metadata.executed_steps == 0
+    assert response.metadata.successful_steps == 0
+    assert response.metadata.failed_steps == 0
+    assert response.metadata.skipped_steps == 0
+
+
+def test_response_extracted_input_does_not_accept_content() -> None:
+    with pytest.raises(ValidationError):
+        ResponseExtractedInput(
+            source_id="source_1",
+            filename="notes.pdf",
+            input_type=InputType.PDF,
+            content="Full extracted document must not be exposed.",
+        )
+
+
+def test_response_plan_step_does_not_accept_reason() -> None:
+    with pytest.raises(ValidationError):
+        ResponsePlanStep(
+            id="step_1",
+            tool=ToolName.SUMMARIZE,
+            input_reference=InputReference(
+                type=InputReferenceType.QUERY_CONTEXT,
+            ),
+            reason="Hidden planner reasoning must not be exposed.",
+        )

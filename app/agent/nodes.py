@@ -9,17 +9,23 @@ from app.models.response import (
 from collections.abc import Callable
 
 from app.agent.executor import Executor
+from app.agent.response_composer import compose_agent_response
+
+from app.agent.response_projection import (
+    build_response_extracted_inputs,
+    build_response_plan,
+)
+from app.agent.safe_plan_trace import build_safe_plan_trace
+from app.models.response import ResponseMetadata
 
 class AgentNodes:
     """
-    LangGraph node implementations for the Phase 8 workflow.
+LangGraph node implementations for planning, validation,
+clarification, and final response composition.
 
-    Planner owns structured generation, semantic validation, and the
-    single bounded repair attempt.
-
-    Phase 8 adds orchestration only. Real tool execution and production
-    response composition remain deferred to later phases.
-    """
+Real execution is injected into the compiled graph through
+create_executor_node().
+""" 
 
     def __init__(
         self,
@@ -97,18 +103,39 @@ class AgentNodes:
             raise ValueError(
                 "Clarification plan requires a clarification question."
             )
+        
+        extracted_inputs = build_response_extracted_inputs(
+            state["context"].extracted_inputs
+        )
+
+        response_plan = build_response_plan(
+            plan=plan,
+            tool_results=state["tool_results"],
+        )
+
+        plan_trace = build_safe_plan_trace(state)
 
         return {
-            "final_response": AgentResponse(
-                request_id=state["request_id"],
-                status=ResponseStatus.CLARIFICATION_REQUIRED,
-                answer=None,
-                clarification_question=clarification_question,
-                trace=list(state["trace"]),
-                warnings=list(state["warnings"]),
-                errors=[],
-            )
-        }
+    "final_response": AgentResponse(
+        request_id=state["request_id"],
+        status=ResponseStatus.CLARIFICATION_REQUIRED,
+        answer=None,
+        clarification_question=clarification_question,
+        trace=list(state["trace"]),
+        extracted_inputs=extracted_inputs,
+        plan=response_plan,
+        plan_trace=plan_trace,
+        warnings=list(state["warnings"]),
+        errors=[],
+        metadata=ResponseMetadata(
+            total_plan_steps=len(plan.steps),
+            executed_steps=0,
+            successful_steps=0,
+            failed_steps=0,
+            skipped_steps=0,
+        ),
+    )
+}
 
     def executor_node(
         self,
@@ -146,43 +173,13 @@ class AgentNodes:
     def response_composer_node(
         self,
         state: AgentState,
-    ) -> dict[str, Any]:
+    ) -> dict[str, object]:
         """
-        Produce the temporary Phase 8 response for the clear branch.
-
-        Production response composition is implemented in a later phase.
+        Compose the final response from completed execution state.
         """
-
-        plan = state["plan"]
-
-        if plan is None:
-            raise ValueError(
-                "Response composer requires a plan."
-            )
-
-        if not state["plan_validated"]:
-            raise ValueError(
-                "Response composer requires a validated plan."
-            )
-
-        if plan.needs_clarification:
-            raise ValueError(
-                "Response composer cannot compose an execution response "
-                "for a clarification plan."
-            )
 
         return {
-            "final_response": AgentResponse(
-                request_id=state["request_id"],
-                status=ResponseStatus.COMPLETED,
-                answer=(
-                    "Execution reached the Phase 8 placeholder executor."
-                ),
-                clarification_question=None,
-                trace=list(state["trace"]),
-                warnings=list(state["warnings"]),
-                errors=list(state["errors"]),
-            )
+            "final_response": compose_agent_response(state),
         }
 def create_executor_node(
     executor: Executor,

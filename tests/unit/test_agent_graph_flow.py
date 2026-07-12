@@ -9,6 +9,8 @@ from app.agent.schemas import (
     PlannerOutput,
     PlanStep,
     ToolName,
+    ToolResult,
+    ToolStatus,
 )
 
 from app.llm.models import (
@@ -44,6 +46,13 @@ class CountingFakeExecutor:
 
         self.calls.append(step.id)
 
+        result = ToolResult(
+            step_id=step.id,
+            tool_name=step.tool,
+            status=ToolStatus.SUCCESS,
+            output=f"Result for {step.id}.",
+        )
+
         return {
             "current_step_index": (
                 state["current_step_index"] + 1
@@ -51,6 +60,10 @@ class CountingFakeExecutor:
             "execution_count": (
                 state["execution_count"] + 1
             ),
+            "tool_results": [
+                *state["tool_results"],
+                result,
+            ],
         }
 
 class FakePlanner:
@@ -189,12 +202,28 @@ def test_executor_loops_until_all_plan_steps_are_processed() -> None:
     assert result["current_step_index"] == 2
     assert result["execution_count"] == 2
 
-    assert result["final_response"] is not None
+    assert len(result["tool_results"]) == 2
 
-    assert (
-        result["final_response"].status
-        is ResponseStatus.COMPLETED
+    assert [
+        tool_result.step_id
+        for tool_result in result["tool_results"]
+    ] == [
+        "step_1",
+        "step_2",
+    ]
+
+    assert all(
+        tool_result.status is ToolStatus.SUCCESS
+        for tool_result in result["tool_results"]
     )
+
+    response = result["final_response"]
+
+    assert response is not None
+    assert response.status is ResponseStatus.COMPLETED
+    assert response.answer == "Result for step_2."
+    assert response.final_answer == "Result for step_2."
+        
 
 def test_ambiguous_request_ends_without_reaching_executor() -> None:
     graph, fake_planner, fake_executor = build_graph(
@@ -258,14 +287,20 @@ def test_clear_request_reaches_executor_and_response_composer() -> None:
     assert result["current_step_index"] == 1
     assert result["execution_count"] == 1
 
-    assert result["tool_results"] == []
+    assert len(result["tool_results"]) == 1
+
+    assert (
+        result["tool_results"][0].status
+        is ToolStatus.SUCCESS
+    )
 
     response = result["final_response"]
 
     assert response is not None
     assert response.status is ResponseStatus.COMPLETED
-    assert response.answer is not None
-
+    assert response.answer == "Result for step_1."
+    assert response.final_answer == "Result for step_1."
+    
 def test_state_survives_across_graph_nodes() -> None:
     graph, _, fake_executor = build_graph(
         build_clear_plan()

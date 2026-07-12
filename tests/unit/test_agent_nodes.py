@@ -189,6 +189,22 @@ def test_clarify_node_creates_clarification_response() -> None:
         == "What would you like me to do?"
     )
     assert response.warnings == ["input warning"]
+    assert response.plan is not None
+    assert response.plan.needs_clarification is True
+    assert response.plan.steps == []
+
+    assert response.plan_trace != []
+
+    assert [
+        entry.message
+        for entry in response.plan_trace
+    ] == [
+        "Planner requested clarification.",
+        "Execution stopped for clarification.",
+    ]
+
+    assert response.metadata.total_plan_steps == 0
+    assert response.metadata.executed_steps == 0
 
 
 def test_clarify_node_rejects_clear_plan() -> None:
@@ -252,30 +268,6 @@ def test_executor_node_rejects_clarification_plan() -> None:
     ):
         nodes.executor_node(state)
 
-
-def test_response_composer_creates_placeholder_completed_response() -> None:
-    nodes, _ = build_nodes(
-        build_clear_plan()
-    )
-
-    state = create_initial_state(
-        request_id="request_1",
-        context=build_context(),
-    )
-
-    state["plan"] = build_clear_plan()
-    state["plan_validated"] = True
-    state["execution_count"] = 1
-
-    update = nodes.response_composer_node(state)
-
-    response = update["final_response"]
-
-    assert response is not None
-    assert response.status is ResponseStatus.COMPLETED
-    assert response.answer is not None
-    assert response.request_id == "request_1"
-    assert response.warnings == ["input warning"]
 
 class FakeExecutor:
     def __init__(self) -> None:
