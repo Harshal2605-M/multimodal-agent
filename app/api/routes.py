@@ -1,8 +1,20 @@
-from fastapi import APIRouter, Depends, status
+from typing import Annotated
 
-from app.api.dependencies import get_request_id
-from app.models.request import AgentRunRequest
-from app.models.response import AgentResponse, ResponseStatus
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    UploadFile,
+    status,
+)
+
+from app.api.dependencies import (
+    get_agent_service,
+    get_request_id,
+)
+from app.models.response import AgentResponse
+from app.services.agent_service import AgentService
 
 
 router = APIRouter()
@@ -38,21 +50,33 @@ def health() -> dict[str, str]:
     response_model=AgentResponse,
     status_code=status.HTTP_200_OK,
 )
-def run_agent(
-    payload: AgentRunRequest,
-    request_id: str = Depends(get_request_id),
-) -> AgentResponse:
-    """
-    Temporary Phase 2 agent endpoint.
-
-    The real multimodal workflow will replace this placeholder
-    implementation in a later phase.
-    """
-
-    return AgentResponse(
-        request_id=request_id,
-        status=ResponseStatus.COMPLETED,
-        answer=(
-            "Agent workflow integration is not implemented yet."
+async def run_agent(
+    query: Annotated[
+        str,
+        Form(
+            min_length=1,
+            max_length=10_000,
         ),
+    ],
+    files: Annotated[
+        list[UploadFile] | None,
+        File(),
+    ] = None,
+    clarification_answer: Annotated[
+        str | None,
+        Form(
+            min_length=1,
+            max_length=10_000,
+        ),
+    ] = None,
+    request_id: str = Depends(get_request_id),
+    agent_service: AgentService = Depends(
+        get_agent_service
+    ),
+) -> AgentResponse:
+    return await agent_service.run(
+        request_id=request_id,
+        query=query,
+        uploads=files or [],
+        clarification_answer=clarification_answer,
     )

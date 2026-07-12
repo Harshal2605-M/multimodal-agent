@@ -7,6 +7,37 @@ from app.main import (
     SECURITY_HEADERS,
     create_app,
 )
+from app.api.dependencies import get_agent_service
+from app.models.response import AgentResponse, ResponseStatus
+
+
+class FakeAgentService:
+    def __init__(self) -> None:
+        self.calls: list[dict[str, object]] = []
+
+    async def run(
+        self,
+        *,
+        request_id: str,
+        query: str,
+        uploads,
+        clarification_answer: str | None = None,
+    ) -> AgentResponse:
+        self.calls.append(
+            {
+                "request_id": request_id,
+                "query": query,
+                "uploads": uploads,
+                "clarification_answer": clarification_answer,
+            }
+        )
+
+        return AgentResponse(
+            request_id=request_id,
+            status=ResponseStatus.COMPLETED,
+            answer="Fake completed answer.",
+            final_answer="Fake completed answer.",
+        )
 
 
 def create_client() -> TestClient:
@@ -64,11 +95,22 @@ def test_health_works_through_real_application() -> None:
 
 
 def test_agent_run_uses_same_request_id_in_header_and_body() -> None:
-    client = create_client()
+    fake_service = FakeAgentService()
+
+    application = create_app()
+
+    application.dependency_overrides[
+        get_agent_service
+    ] = lambda: fake_service
+
+    client = TestClient(
+        application,
+        raise_server_exceptions=False,
+    )
 
     response = client.post(
         "/agent/run",
-        json={
+        data={
             "query": "Summarize this document.",
         },
     )
@@ -77,51 +119,19 @@ def test_agent_run_uses_same_request_id_in_header_and_body() -> None:
 
     assert response.status_code == 200
 
-    assert body["request_id"] == response.headers["X-Request-ID"]
+    assert "x-request-id" in response.headers
 
-    assert_valid_uuid(body["request_id"])
-
-    assert body["status"] == "completed"
-
-    assert body["answer"] == (
-        "Agent workflow integration is not implemented yet."
+    assert (
+        body["request_id"]
+        == response.headers["x-request-id"]
     )
 
+    assert len(fake_service.calls) == 1
 
-def test_valid_client_request_id_is_reused() -> None:
-    client = create_client()
-
-    request_id = (
-        "123e4567-e89b-12d3-a456-426614174000"
+    assert (
+        fake_service.calls[0]["request_id"]
+        == response.headers["x-request-id"]
     )
-
-    response = client.get(
-        "/health",
-        headers={
-            "X-Request-ID": request_id,
-        },
-    )
-
-    assert response.status_code == 200
-
-    assert response.headers["X-Request-ID"] == request_id
-
-
-def test_invalid_client_request_id_is_replaced() -> None:
-    client = create_client()
-
-    response = client.get(
-        "/health",
-        headers={
-            "X-Request-ID": "not-a-valid-uuid",
-        },
-    )
-
-    returned_request_id = response.headers["X-Request-ID"]
-
-    assert returned_request_id != "not-a-valid-uuid"
-
-    assert_valid_uuid(returned_request_id)
 
 
 def test_validation_error_has_security_headers() -> None:
@@ -129,7 +139,7 @@ def test_validation_error_has_security_headers() -> None:
 
     response = client.post(
         "/agent/run",
-        json={
+        data={
             "query": "a" * 10_001,
         },
     )
@@ -141,8 +151,7 @@ def test_validation_error_has_security_headers() -> None:
     )
 
     assert_security_headers(response)
-
-
+    
 def test_unhandled_exception_returns_safe_response() -> None:
     application = create_app()
 

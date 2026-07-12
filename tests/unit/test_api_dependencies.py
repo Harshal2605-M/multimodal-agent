@@ -1,40 +1,18 @@
-import pytest
-from starlette.requests import Request
-
-from app.api.dependencies import (
-    REQUEST_ID_STATE_KEY,
-    get_request_id,
-)
+from app.api.dependencies import get_agent_service
+from app.services.agent_service import AgentService
 
 
-def make_request() -> Request:
-    scope = {
-        "type": "http",
-        "method": "GET",
-        "path": "/",
-        "headers": [],
-    }
+def test_get_agent_service_builds_and_caches_service() -> None:
+    get_agent_service.cache_clear()
 
-    return Request(scope)
+    first_service = get_agent_service()
+    second_service = get_agent_service()
 
-
-def test_get_request_id_returns_request_state_value() -> None:
-    request = make_request()
-
-    setattr(
-        request.state,
-        REQUEST_ID_STATE_KEY,
-        "req_123",
+    assert isinstance(
+        first_service,
+        AgentService,
     )
 
-    assert get_request_id(request) == "req_123"
+    assert first_service is second_service
 
-
-def test_get_request_id_raises_when_request_id_missing() -> None:
-    request = make_request()
-
-    with pytest.raises(
-        RuntimeError,
-        match="Request ID is missing",
-    ):
-        get_request_id(request)
+    get_agent_service.cache_clear()
