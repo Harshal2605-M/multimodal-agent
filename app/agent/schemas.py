@@ -5,6 +5,7 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    field_validator,
     model_validator,
 )
 
@@ -190,6 +191,27 @@ class PlannerOutput(BaseModel):
     steps: list[PlanStep] = Field(
         default_factory=list,
     )
+
+    @field_validator("constraints", mode="before")
+    @classmethod
+    def normalize_constraints(cls, value: Any) -> Any:
+        """
+        Normalize recoverable planner output variations.
+
+        LLM providers may return a single constraint as a string
+        instead of a JSON array. Preserve the application contract
+        by converting that shape to list[str] before validation.
+        """
+
+        if value is None:
+            return []
+
+        if isinstance(value, str):
+            normalized_value = value.strip()
+
+            return [normalized_value] if normalized_value else []
+
+        return value
 
     @model_validator(mode="after")
     def validate_clarification_contract(self) -> Self:
