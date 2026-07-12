@@ -46,7 +46,7 @@ temp/
 uploads/
 
 # Local model/cache directories
-models/
+/models/
 .cache/
 
 # Audio/video processing artifacts
