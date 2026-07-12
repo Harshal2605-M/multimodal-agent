@@ -1,4 +1,5 @@
 from collections.abc import Callable
+from urllib.parse import quote
 
 from youtube_transcript_api import (
     NoTranscriptFound,
@@ -15,7 +16,6 @@ from app.config import Settings, get_settings
 from app.models.input import URLType
 from app.tools.base import AgentTool, ToolInput
 from app.utils.url_detection import detect_urls
-from youtube_transcript_api.proxies import WebshareProxyConfig
 
 
 TranscriptFetcher = Callable[[str], str]
@@ -44,8 +44,14 @@ def _build_youtube_api(
     ):
         return YouTubeTranscriptApi()
 
-    proxy_username = username.get_secret_value()
-    proxy_password = password.get_secret_value()
+    proxy_username = quote(
+        username.get_secret_value(),
+        safe="",
+    )
+    proxy_password = quote(
+        password.get_secret_value(),
+        safe="",
+    )
 
     proxy_url = (
         f"http://{proxy_username}:"
@@ -59,6 +65,7 @@ def _build_youtube_api(
         )
     )
 
+
 def fetch_youtube_transcript(
     video_id: str,
 ) -> str:
@@ -69,16 +76,23 @@ def fetch_youtube_transcript(
     to the first available transcript, including auto-generated ones.
     """
 
-    api = _build_youtube_api(get_settings())
+    api = _build_youtube_api(
+        get_settings()
+    )
 
-    transcript_list = api.list(video_id)
+    transcript_list = api.list(
+        video_id
+    )
 
     try:
         transcript = transcript_list.find_transcript(
             ["en"]
         )
+
     except NoTranscriptFound:
-        transcript = next(iter(transcript_list))
+        transcript = next(
+            iter(transcript_list)
+        )
 
     fetched_transcript = transcript.fetch()
 
@@ -160,6 +174,7 @@ class YouTubeTranscriptTool(AgentTool):
             transcript = self._transcript_fetcher(
                 detected_url.video_id
             )
+
         except Exception as exc:
             print(
                 "YouTube transcript fetch failed: "
