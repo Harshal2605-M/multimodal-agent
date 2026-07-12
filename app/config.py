@@ -1,20 +1,18 @@
 from functools import lru_cache
-from typing import Literal, Self
+from typing import Literal
 
-from pydantic import (
-    Field,
-    SecretStr,
-    model_validator,
-)
-from pydantic_settings import (
-    BaseSettings,
-    SettingsConfigDict,
-)
+from pydantic import Field, SecretStr
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     """
     Central application configuration.
+
+    Configuration is loaded from environment variables and, during local
+    development, from the .env file.
+
+    Environment variables take precedence over values defined in .env.
     """
 
     # ---------------------------------------------------------
@@ -54,22 +52,6 @@ class Settings(BaseSettings):
     gemini_api_key: SecretStr | None = None
 
     gemini_model: str = "gemini-2.5-flash"
-
-    # ---------------------------------------------------------
-    # YouTube Transcript Proxy
-    # ---------------------------------------------------------
-
-    youtube_proxy_host: str | None = None
-
-    youtube_proxy_port: int | None = Field(
-        default=None,
-        ge=1,
-        le=65535,
-    )
-
-    youtube_proxy_username: SecretStr | None = None
-
-    youtube_proxy_password: SecretStr | None = None
 
     # ---------------------------------------------------------
     # Upload / Resource Limits
@@ -189,32 +171,6 @@ class Settings(BaseSettings):
     )
 
     # ---------------------------------------------------------
-    # Configuration Validation
-    # ---------------------------------------------------------
-
-    @model_validator(mode="after")
-    def validate_youtube_proxy_configuration(self) -> Self:
-        proxy_values = (
-            self.youtube_proxy_host,
-            self.youtube_proxy_port,
-            self.youtube_proxy_username,
-            self.youtube_proxy_password,
-        )
-
-        configured_count = sum(
-            value is not None
-            for value in proxy_values
-        )
-
-        if configured_count not in (0, 4):
-            raise ValueError(
-                "YouTube proxy host, port, username, and password "
-                "must all be configured together."
-            )
-
-        return self
-
-    # ---------------------------------------------------------
     # Derived Values
     # ---------------------------------------------------------
 
@@ -239,6 +195,8 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """
     Return one cached Settings instance per Python process.
+
+    This avoids repeatedly parsing environment variables and the .env file.
     """
 
     return Settings()

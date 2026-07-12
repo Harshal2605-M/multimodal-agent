@@ -1,13 +1,6 @@
 from app.agent.schemas import ToolName, ToolStatus
 from app.tools.base import ToolInput
 from app.tools.youtube_transcript import YouTubeTranscriptTool
-from pydantic import SecretStr
-
-from app.config import Settings
-from app.tools.youtube_transcript import (
-    YouTubeTranscriptTool,
-    _build_youtube_api,
-)
 
 
 class FakeTranscriptFetcher:
@@ -177,86 +170,3 @@ def test_youtube_transcript_tool_rejects_empty_transcript() -> None:
 
     assert result.status is ToolStatus.FAILED
     assert result.error_code == "empty_transcript"
-
-
-def test_build_youtube_api_without_proxy() -> None:
-    settings = Settings(
-        youtube_proxy_username=None,
-        youtube_proxy_password=None,
-    )
-
-    api = _build_youtube_api(settings)
-
-    assert api is not None
-
-
-def test_build_youtube_api_with_proxy() -> None:
-    settings = Settings(
-        youtube_proxy_username=SecretStr("test-user"),
-        youtube_proxy_password=SecretStr("test-password"),
-    )
-
-    api = _build_youtube_api(settings)
-
-    assert api is not None
-
-def test_build_youtube_api_configures_proxy(
-    monkeypatch,
-) -> None:
-    captured: dict[str, object] = {}
-
-    class FakeYouTubeTranscriptApi:
-        def __init__(
-            self,
-            *,
-            proxy_config=None,
-        ) -> None:
-            captured["proxy_config"] = proxy_config
-
-    monkeypatch.setattr(
-        "app.tools.youtube_transcript.YouTubeTranscriptApi",
-        FakeYouTubeTranscriptApi,
-    )
-
-    settings = Settings(
-        youtube_proxy_username=SecretStr("test-user"),
-        youtube_proxy_password=SecretStr("test-password"),
-    )
-
-    _build_youtube_api(settings)
-
-    proxy_config = captured["proxy_config"]
-
-    assert proxy_config.proxy_username == "test-user"
-    assert proxy_config.proxy_password == "test-password"
-
-def test_build_youtube_api_configures_proxy(
-    monkeypatch,
-) -> None:
-    captured: dict[str, object] = {}
-
-    class FakeYouTubeTranscriptApi:
-        def __init__(
-            self,
-            *,
-            proxy_config=None,
-        ) -> None:
-            captured["proxy_config"] = proxy_config
-
-    monkeypatch.setattr(
-        "app.tools.youtube_transcript.YouTubeTranscriptApi",
-        FakeYouTubeTranscriptApi,
-    )
-
-    settings = Settings(
-        youtube_proxy_username=SecretStr("test-user"),
-        youtube_proxy_password=SecretStr("test-password"),
-    )
-
-    _build_youtube_api(settings)
-
-    proxy_config = captured["proxy_config"]
-
-    assert proxy_config.proxy_username == "test-user"
-    assert proxy_config.proxy_password == "test-password"
-
