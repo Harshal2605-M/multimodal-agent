@@ -282,3 +282,53 @@ def test_resolve_non_text_dependency_output_fails_closed() -> None:
             ),
             state=state,
         )
+
+def test_source_reference_resolves_associated_detected_urls() -> None:
+    context = NormalizedContext(
+        query="Summarize the linked video.",
+        extracted_inputs=[
+            ExtractedInput(
+                source_id="source_1",
+                filename="notes.pdf",
+                input_type=InputType.PDF,
+                content="Watch https://youtu.be/abc123",
+            )
+        ],
+        detected_urls=[
+            DetectedURL(
+                url="https://youtu.be/abc123",
+                url_type=URLType.YOUTUBE,
+                source_id="source_1",
+                video_id="abc123",
+            ),
+        ],
+    )
+
+    state = create_initial_state(
+        request_id="request_source_url",
+        context=context,
+    )
+
+    step = PlanStep(
+        id="step_1",
+        tool=ToolName.YOUTUBE_TRANSCRIPT,
+        input_reference=InputReference(
+            type=InputReferenceType.SOURCE,
+            source_id="source_1",
+        ),
+        depends_on=[],
+        reason="Retrieve the transcript.",
+    )
+
+    tool_input = resolve_tool_input(
+        step=step,
+        state=state,
+    )
+
+    assert tool_input.texts == [
+        "Watch https://youtu.be/abc123",
+    ]
+
+    assert tool_input.urls == [
+        "https://youtu.be/abc123",
+    ]

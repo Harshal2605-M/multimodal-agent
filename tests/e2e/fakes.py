@@ -21,18 +21,26 @@ from app.llm.service import LLMService
 from app.services.agent_service import AgentService
 from app.tools.base import AgentTool
 from app.tools.registry import ToolRegistry
+from types import SimpleNamespace
+from app.extractors.audio import WhisperTranscriber
+from collections.abc import Callable
 
-
+PlanFactory = Callable[
+    [NormalizedContext],
+    PlannerOutput,
+]
 class DeterministicPlanner:
     """
-    Planner test double returning one predefined validated plan.
+    Deterministic planner test double.
 
-    The real graph, executor, registry, and tools remain active.
+    Supports:
+    - fixed plans for query-only scenarios
+    - context-aware plan factories for uploaded-source scenarios
     """
 
     def __init__(
         self,
-        plan: PlannerOutput,
+        plan: PlannerOutput | PlanFactory,
     ) -> None:
         self._plan = plan
         self.calls: list[NormalizedContext] = []
@@ -43,8 +51,13 @@ class DeterministicPlanner:
     ) -> LLMStructuredGenerationResult:
         self.calls.append(context)
 
+        if callable(self._plan):
+            plan = self._plan(context)
+        else:
+            plan = self._plan
+
         return LLMStructuredGenerationResult(
-            output=self._plan,
+            output=plan,
             provider_used=LLMProviderName.GROQ,
         )
     
@@ -93,11 +106,73 @@ class DeterministicLLMProvider(BaseLLMProvider):
         )
     
 
+class FakeWhisperSegment:
+    def __init__(
+        self,
+        text: str,
+    ) -> None:
+        self.text = text
+
+
+class DeterministicWhisperTranscriber:
+    """
+    Deterministic faster-whisper boundary replacement.
+
+    Returns predefined transcript segments and audio metadata while
+    preserving the real extract_audio() implementation.
+    """
+
+    def __init__(
+        self,
+        *,
+        transcript_segments: list[str],
+        duration_seconds: float,
+        language: str = "en",
+        language_probability: float = 0.99,
+    ) -> None:
+        self._transcript_segments = transcript_segments
+        self._duration_seconds = duration_seconds
+        self._language = language
+        self._language_probability = language_probability
+
+        self.calls: list[
+            tuple[str, dict[str, object]]
+        ] = []
+
+    def transcribe(
+        self,
+        audio: str,
+        **kwargs,
+    ):
+        self.calls.append(
+            (
+                audio,
+                dict(kwargs),
+            )
+        )
+
+        segments = [
+            FakeWhisperSegment(text)
+            for text in self._transcript_segments
+        ]
+
+        info = SimpleNamespace(
+            duration=self._duration_seconds,
+            language=self._language,
+            language_probability=(
+                self._language_probability
+            ),
+        )
+
+        return segments, info
+    
+
 def build_e2e_agent_service(
     *,
     settings: Settings,
-    plan: PlannerOutput,
+    plan: PlannerOutput | PlanFactory,
     tools: list[AgentTool],
+    audio_transcriber: WhisperTranscriber | None = None,
 ) -> tuple[
     AgentService,
     DeterministicPlanner,
@@ -120,6 +195,7 @@ def build_e2e_agent_service(
             planner,
         ),
         executor=executor,
+        audio_transcriber=audio_transcriber,
     )
 
     return service, planner

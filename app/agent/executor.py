@@ -37,53 +37,63 @@ def resolve_tool_input(
     context = state["context"]
 
     if reference.type is InputReferenceType.SOURCE:
-        source_id = reference.source_id
+            source_id = reference.source_id
 
-        extracted_input = next(
-            (
-                item
-                for item in context.extracted_inputs
-                if item.source_id == source_id
-            ),
-            None,
-        )
-
-        if extracted_input is None:
-            raise ToolInputResolutionError(
-                f"Source is unavailable at execution time: {source_id}"
+            extracted_input = next(
+                (
+                    item
+                    for item in context.extracted_inputs
+                    if item.source_id == source_id
+                ),
+                None,
             )
 
-        return ToolInput(
-            step_id=step.id,
-            query=context.query,
-            texts=[extracted_input.content],
-        )
+            if extracted_input is None:
+                raise ToolInputResolutionError(
+                    f"Source is unavailable at execution time: {source_id}"
+                )
+
+            associated_urls = [
+                str(detected_url.url)
+                for detected_url in context.detected_urls
+                if detected_url.source_id == source_id
+            ]
+
+            return ToolInput(
+                step_id=step.id,
+                query=context.query,
+                texts=[
+                    extracted_input.content,
+                ],
+                urls=associated_urls,
+            )
+
 
     if reference.type is InputReferenceType.SOURCES:
         source_ids = reference.source_ids or []
 
-        sources_by_id = {
-            item.source_id: item
-            for item in context.extracted_inputs
+        extracted_inputs_by_id = {
+            extracted_input.source_id: extracted_input
+            for extracted_input in context.extracted_inputs
         }
 
         missing_source_ids = [
             source_id
             for source_id in source_ids
-            if source_id not in sources_by_id
+            if source_id not in extracted_inputs_by_id
         ]
 
         if missing_source_ids:
             raise ToolInputResolutionError(
                 "Sources are unavailable at execution time: "
-                + ", ".join(missing_source_ids)
+                f"{missing_source_ids}"
             )
 
         return ToolInput(
             step_id=step.id,
             query=context.query,
             texts=[
-                sources_by_id[source_id].content
+                extracted_inputs_by_id[source_id].content
                 for source_id in source_ids
             ],
         )
