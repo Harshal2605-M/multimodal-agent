@@ -14,6 +14,7 @@ from app.utils.url_detection import detect_urls
 from app.tools.base import AgentTool, ToolInput
 
 
+
 TranscriptFetcher = Callable[[str], str]
 
 
@@ -120,8 +121,10 @@ class YouTubeTranscriptTool(AgentTool):
             )
         except Exception as exc:
             print(
-                "YouTube transcript fetch failed: "
-                f"{type(exc).__name__}: {exc}"
+                "YouTube transcript fetch failed:",
+                type(exc).__name__,
+                str(exc),
+                flush=True,
             )
 
             return ToolResult(
